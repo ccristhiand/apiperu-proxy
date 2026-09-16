@@ -498,6 +498,14 @@ async function consultar() {
     const data = await res.json();
     const ms   = Date.now() - t0;
 
+    // Si el token expiró o es inválido, cerrar sesión automáticamente
+    if (res.status === 401) {
+      logout();
+      showToast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
+      renderError('Token expirado — inicia sesión nuevamente.');
+      return;
+    }
+
     renderResult(data, tipo, numero, ms, res.status);
     if (data.ok) addHistory(tipo, numero, data.fuente);
   } catch (e) {
