@@ -12,10 +12,10 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting: máx 100 peticiones por IP cada 15 min
+// Rate limiting: máx 1000 peticiones por IP cada 15 min
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max:      100,
+  max:      1000,
   standardHeaders: true,
   legacyHeaders:   false,
   message: { ok: false, mensaje: 'Demasiadas peticiones. Intenta de nuevo en 15 minutos.' },
