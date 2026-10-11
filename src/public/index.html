@@ -539,7 +539,6 @@ async function doBulk() {
   const numeros = raw.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
 
   if (!numeros.length) { showToast('Ingresa al menos un número.', 'error'); return; }
-  if (numeros.length > 100) { showToast('Máximo 100 por petición.', 'error'); return; }
 
   const btn = document.getElementById('btnBulk');
   btn.disabled = true;
