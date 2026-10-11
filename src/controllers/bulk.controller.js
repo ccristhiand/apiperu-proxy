@@ -11,8 +11,6 @@ async function bulkRuc(req, res) {
   if (!Array.isArray(numeros) || !numeros.length)
     return res.status(400).json({ ok: false, mensaje: 'Envía un array "numeros" con los RUCs.' });
 
-  if (numeros.length > 100)
-    return res.status(400).json({ ok: false, mensaje: 'Máximo 100 RUCs por petición.' });
 
   const invalidos = numeros.filter(n => !/^\d{11}$/.test(String(n).trim()));
   if (invalidos.length)
@@ -83,8 +81,6 @@ async function bulkDni(req, res) {
   if (!Array.isArray(numeros) || !numeros.length)
     return res.status(400).json({ ok: false, mensaje: 'Envía un array "numeros" con los DNIs.' });
 
-  if (numeros.length > 100)
-    return res.status(400).json({ ok: false, mensaje: 'Máximo 100 DNIs por petición.' });
 
   const invalidos = numeros.filter(n => !/^\d{8}$/.test(String(n).trim()));
   if (invalidos.length)
