@@ -6,7 +6,7 @@ const rucCtrl      = require('../controllers/ruc.controller');
 const dniCtrl      = require('../controllers/dni.controller');
 const bulkCtrl     = require('../controllers/bulk.controller');
 const listadoCtrl  = require('../controllers/listado.controller');
-const auth         = require('../middlewares/auth.middleware');
+const auth         = require('../middleware/auth');
 
 // ── Auth ──────────────────────────────────────────────────────
 router.post('/auth/login',    authCtrl.login);
