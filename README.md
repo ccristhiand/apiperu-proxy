@@ -58,6 +58,8 @@ Variables importantes:
 | `DB_NAME` | Nombre de la BD (por defecto: `apiperu_cache`) |
 | `JWT_SECRET` | Secreto largo y aleatorio para firmar tokens |
 | `APIPERU_TOKEN` | Tu token de [apiperu.dev](https://apiperu.dev) |
+| `APIPERU_RPM` | Consultas por minuto que permite tu plan de ApiPeruDev (por defecto `60`, plan micro). El sistema nunca lo supera: si se llena el cupo, espera en vez de fallar |
+| `APIPERU_CONCURRENCIA` | Consultas simultáneas a ApiPeruDev en la carga masiva (por defecto `3`) |
 
 ### 3. Crear la base de datos
 
@@ -159,6 +161,25 @@ Authorization: Bearer eyJhbGci...
   }
 }
 ```
+
+#### `POST /api/bulk/ruc` · `POST /api/bulk/dni` 🔒
+```json
+// Request
+{ "numeros": ["20100070970", "20601138498"] }
+// Response: { ok, resumen: { total, exitosos, errores, desde_cache, desde_api }, resultados: [...] }
+```
+
+#### `POST /api/bulk/:tipo/stream` 🔒  (`tipo` = `ruc` | `dni`)
+Igual que el anterior, pero responde **en vivo** con NDJSON (un JSON por línea),
+para mostrar el progreso en tiempo real:
+```
+{"evento":"inicio","total":500,"rpm":60}
+{"evento":"resultado","i":0,"resultado":{"ruc":"20100070970","ok":true,"fuente":"cache","datos":{...}}}
+{"evento":"espera","ms":35000}          ← esperando cupo de ApiPeruDev
+{"evento":"fin","resumen":{...}}
+```
+Si el cliente cierra la conexión, el lote se cancela. Detrás de Nginx, la
+cabecera `X-Accel-Buffering: no` evita que la respuesta se acumule.
 
 #### `GET /api/health`
 ```json

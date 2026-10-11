@@ -1,6 +1,16 @@
 const axios = require('axios');
+const { RateLimiter } = require('./rateLimiter');
 
 const BASE_URL = 'https://apiperu.dev/api';
+
+// Consultas por minuto que permite el plan de ApiPeruDev (plan "micro" = 60).
+const RPM = parseInt(process.env.APIPERU_RPM, 10) || 60;
+// Reintentos cuando ApiPeruDev responde "demasiadas solicitudes".
+const MAX_REINTENTOS = 5;
+// Pausa por defecto tras ese error, si la API no indica cuánto esperar.
+const PAUSA_LIMITE_MS = 15_000;
+
+const limiter = new RateLimiter(RPM);
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -12,57 +22,61 @@ const client = axios.create({
   },
 });
 
-/**
- * Consulta un RUC en ApiPeruDev.
- * Devuelve el objeto `data` de la respuesta o lanza un error.
- */
-async function consultarRuc(ruc) {
-  try {
-    const { data } = await client.get(`/ruc/${ruc}`);
+const esLimiteExcedido = (status, mensaje) =>
+  status === 429 || /demasiadas solicitudes|too many requests/i.test(mensaje || '');
 
-    if (!data.success) {
-      const err = new Error(data.message || 'RUC no encontrado en ApiPeruDev');
-      err.statusCode = 404;
-      throw err;
-    }
-
-    console.log('📦 ApiPeruDev RUC response:', JSON.stringify(data.data, null, 2));
-    return data.data;          // objeto con todos los campos del contribuyente
-  } catch (err) {
-    if (err.response) {
-      const msg = err.response.data?.message || 'Error al consultar ApiPeruDev (RUC)';
-      const e   = new Error(msg);
-      e.statusCode = err.response.status;
-      throw e;
-    }
-    throw err;
-  }
+/** Pausa tras "demasiadas solicitudes": crece con cada reintento (15 s, 30 s, 45 s…). */
+function pausaSugerida(headers, intento) {
+  const seg = parseInt(headers?.['retry-after'], 10);
+  const indicada = Number.isFinite(seg) && seg > 0 ? seg * 1000 : 0;
+  return Math.max(indicada, PAUSA_LIMITE_MS * (intento + 1));
 }
 
 /**
- * Consulta un DNI en ApiPeruDev (RENIEC).
- * Devuelve el objeto `data` de la respuesta o lanza un error.
+ * Hace una consulta a ApiPeruDev respetando el límite por minuto.
+ * Si aun así la API responde "demasiadas solicitudes", espera y reintenta.
+ *
+ * @param {string} ruta      p. ej. '/ruc/20100070970'
+ * @param {string} etiqueta  'RUC' | 'DNI' (para los mensajes de error)
+ * @param {{ onEspera?: (ms:number)=>void, signal?: AbortSignal }} [opciones]
  */
-async function consultarDni(dni) {
-  try {
-    const { data } = await client.get(`/dni/${dni}`);
+async function consultar(ruta, etiqueta, { onEspera, signal } = {}) {
+  for (let intento = 0; ; intento++) {
+    await limiter.acquire(onEspera, signal);
 
-    if (!data.success) {
-      const err = new Error(data.message || 'DNI no encontrado en ApiPeruDev');
-      err.statusCode = 404;
-      throw err;
-    }
+    let respuesta;
+    try {
+      respuesta = await client.get(ruta, { signal });
+    } catch (err) {
+      if (!err.response) throw err;   // red, timeout o cancelación
 
-    return data.data;          // objeto con nombres, apellidos, etc.
-  } catch (err) {
-    if (err.response) {
-      const msg = err.response.data?.message || 'Error al consultar ApiPeruDev (DNI)';
-      const e   = new Error(msg);
+      const msg = err.response.data?.message || `Error al consultar ApiPeruDev (${etiqueta})`;
+      if (esLimiteExcedido(err.response.status, msg) && intento < MAX_REINTENTOS) {
+        limiter.bloquear(pausaSugerida(err.response.headers, intento));
+        continue;
+      }
+      const e = new Error(msg);
       e.statusCode = err.response.status;
       throw e;
     }
-    throw err;
+
+    const { data } = respuesta;
+    if (data.success) return data.data;
+
+    if (esLimiteExcedido(null, data.message) && intento < MAX_REINTENTOS) {
+      limiter.bloquear(pausaSugerida(respuesta.headers, intento));
+      continue;
+    }
+    const e = new Error(data.message || `${etiqueta} no encontrado en ApiPeruDev`);
+    e.statusCode = 404;
+    throw e;
   }
 }
 
-module.exports = { consultarRuc, consultarDni };
+/** Consulta un RUC. Devuelve el objeto `data` de ApiPeruDev o lanza un error. */
+const consultarRuc = (ruc, opciones) => consultar(`/ruc/${ruc}`, 'RUC', opciones);
+
+/** Consulta un DNI (RENIEC). Devuelve el objeto `data` de ApiPeruDev o lanza un error. */
+const consultarDni = (dni, opciones) => consultar(`/dni/${dni}`, 'DNI', opciones);
+
+module.exports = { consultarRuc, consultarDni, RPM };

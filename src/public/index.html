@@ -3,813 +3,325 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title>ApiPeru Proxy – Consola</title>
-  <style>
-    :root {
-      --bg:       #0f1117;
-      --surface:  #1a1d27;
-      --border:   #2e3147;
-      --accent:   #6c63ff;
-      --accent2:  #4ecca3;
-      --text:     #e2e8f0;
-      --muted:    #8892b0;
-      --error:    #ff6b6b;
-      --success:  #4ecca3;
-      --warning:  #ffd166;
-      --radius:   10px;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
-    /* ── Header ── */
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .logo { font-size: 1.2rem; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
-    .logo span { color: var(--accent2); }
-    #userInfo { font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 10px; }
-    #userInfo strong { color: var(--text); }
-    #btnLogout {
-      background: transparent; border: 1px solid var(--border);
-      color: var(--muted); padding: 4px 12px; border-radius: 6px;
-      cursor: pointer; font-size: .8rem; transition: .2s;
-    }
-    #btnLogout:hover { border-color: var(--error); color: var(--error); }
 
-    /* ── Login ── */
-    #loginOverlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.7);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 100;
-    }
-    .loginBox {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 36px 40px; width: 360px;
-    }
-    .loginBox h2 { margin-bottom: 24px; color: var(--accent); }
-    .formGroup { margin-bottom: 16px; }
-    .formGroup label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
-    .formGroup input {
-      width: 100%; padding: 10px 14px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 7px; color: var(--text); font-size: .95rem;
-      outline: none; transition: border-color .2s;
-    }
-    .formGroup input:focus { border-color: var(--accent); }
-    #loginError { color: var(--error); font-size: .85rem; margin-bottom: 12px; min-height: 1.2em; }
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
 
-    /* ── Tabs ── */
-    .tabs {
-      display: flex; gap: 4px;
-      padding: 16px 24px 0;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
-    }
-    .tab {
-      padding: 10px 22px; border-radius: 8px 8px 0 0;
-      cursor: pointer; font-size: .9rem; font-weight: 500;
-      border: 1px solid transparent; border-bottom: none;
-      color: var(--muted); transition: .2s;
-    }
-    .tab:hover { color: var(--text); }
-    .tab.active { background: var(--bg); color: var(--accent); border-color: var(--border); }
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/views.css" />
 
-    /* ── Panels ── */
-    .panel { display: none; padding: 24px; max-width: 960px; margin: 0 auto; }
-    .panel.active { display: block; }
-
-    /* ── Cards / Inputs ── */
-    .card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
-    }
-    .card h3 { color: var(--accent2); margin-bottom: 16px; font-size: 1rem; }
-    .row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
-    .field { flex: 1; min-width: 160px; }
-    .field label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: 5px; }
-    input[type="text"], input[type="number"], textarea, select {
-      width: 100%; padding: 10px 14px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 7px; color: var(--text); font-size: .92rem;
-      outline: none; transition: border-color .2s; resize: vertical;
-    }
-    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
-
-    /* Buttons */
-    .btn {
-      padding: 10px 22px; border-radius: 7px; cursor: pointer;
-      font-size: .9rem; font-weight: 600; border: none; transition: .2s;
-    }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-primary:hover { background: #574fd6; }
-    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); }
-    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-success { background: var(--accent2); color: #0f1117; }
-    .btn-success:hover { background: #3bb89a; }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
-
-    /* Toggle tipo */
-    .toggleGroup { display: flex; background: var(--bg); border-radius: 8px; padding: 3px; width: fit-content; }
-    .toggleBtn {
-      padding: 7px 20px; border-radius: 6px; cursor: pointer;
-      font-size: .88rem; font-weight: 600; border: none; background: transparent;
-      color: var(--muted); transition: .2s;
-    }
-    .toggleBtn.active { background: var(--accent); color: #fff; }
-
-    /* Result box */
-    .resultBox {
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace;
-      font-size: .82rem; white-space: pre-wrap; word-break: break-all;
-      max-height: 400px; overflow-y: auto; color: var(--text);
-    }
-    .resultBox.error { border-color: var(--error); color: var(--error); }
-    .resultBox.success { border-color: var(--success); }
-    .resultBox.empty { color: var(--muted); font-style: italic; }
-
-    /* Badge fuente */
-    .badge {
-      display: inline-block; padding: 2px 8px; border-radius: 4px;
-      font-size: .75rem; font-weight: 700; text-transform: uppercase;
-    }
-    .badge-cache { background: #1a3a2a; color: var(--accent2); }
-    .badge-api   { background: #2a1a3a; color: var(--accent); }
-
-    /* Tabla listado */
-    .tableWrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
-    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-    thead th {
-      background: var(--surface); padding: 12px 14px;
-      text-align: left; font-weight: 600; color: var(--muted);
-      border-bottom: 1px solid var(--border);
-    }
-    tbody tr:hover { background: rgba(108,99,255,.06); }
-    tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
-    tbody tr:last-child td { border-bottom: none; }
-
-    /* Paginación */
-    .pagination { display: flex; gap: 6px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
-    .pageBtn {
-      padding: 6px 12px; border-radius: 6px; cursor: pointer;
-      border: 1px solid var(--border); background: var(--surface);
-      color: var(--muted); font-size: .85rem; transition: .2s;
-    }
-    .pageBtn:hover, .pageBtn.active { border-color: var(--accent); color: var(--accent); }
-    .pageBtn:disabled { opacity: .4; cursor: not-allowed; }
-
-    /* Resumen bulk */
-    .resumenGrid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-      gap: 10px; margin-bottom: 16px;
-    }
-    .resCard {
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 14px; text-align: center;
-    }
-    .resCard .num { font-size: 1.6rem; font-weight: 700; color: var(--accent2); }
-    .resCard .lbl { font-size: .75rem; color: var(--muted); margin-top: 2px; }
-
-    /* File area */
-    .dropZone {
-      border: 2px dashed var(--border); border-radius: 8px;
-      padding: 28px; text-align: center; color: var(--muted);
-      cursor: pointer; transition: .2s;
-    }
-    .dropZone:hover, .dropZone.over { border-color: var(--accent); color: var(--accent); }
-    .dropZone input { display: none; }
-
-    /* Toast */
-    #toast {
-      position: fixed; bottom: 24px; right: 24px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 8px; padding: 12px 20px; font-size: .88rem;
-      opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999;
-    }
-    #toast.show { opacity: 1; }
-    #toast.success { border-color: var(--success); color: var(--success); }
-    #toast.error   { border-color: var(--error); color: var(--error); }
-
-    /* Spinner */
-    .spinner {
-      display: inline-block; width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
-      border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+  <!-- Aplica el tema guardado antes de pintar, para evitar parpadeo -->
+  <script>
+    try { const t = localStorage.getItem('tema'); if (t) document.documentElement.dataset.theme = t; } catch {}
+  </script>
+  <script type="module" src="js/main.js"></script>
 </head>
-<body>
 
-<!-- ── LOGIN OVERLAY ── -->
-<div id="loginOverlay">
-  <div class="loginBox">
-    <h2>🔐 ApiPeru Proxy</h2>
-    <div class="formGroup">
-      <label>Email</label>
-      <input id="loginEmail" type="text" placeholder="admin@example.com" />
-    </div>
-    <div class="formGroup">
-      <label>Contraseña</label>
-      <input id="loginPass" type="password" placeholder="••••••••"
-             onkeydown="if(event.key==='Enter') doLogin()" />
-    </div>
-    <div id="loginError"></div>
-    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">
-      Ingresar
-    </button>
-  </div>
-</div>
+<body data-auth="checking">
 
-<!-- ── HEADER ── -->
-<header>
-  <div class="logo">ApiPeru <span>Proxy</span></div>
-  <div id="userInfo" style="display:none">
-    Hola, <strong id="userName">–</strong>
-    <button id="btnLogout" onclick="logout()">Cerrar sesión</button>
-  </div>
-</header>
+<!-- ── Iconos (sprite SVG, se usan con <svg><use href="#i-..."/></svg>) ── -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7l10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m6 3 14 9-14 9V3z"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-sheet" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m8 13 4 5"/><path d="m12 13-4 5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M8 16H3v5"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  </defs>
+</svg>
 
-<!-- ── TABS ── -->
-<div class="tabs">
-  <div class="tab active" onclick="showTab('consulta')">🔍 Consulta Individual</div>
-  <div class="tab" onclick="showTab('bulk')">📦 Carga Masiva</div>
-  <div class="tab" onclick="showTab('listado')">📋 Listado Registros</div>
-</div>
-
-<!-- ════════════════════════════════════════
-     TAB 1 – CONSULTA INDIVIDUAL
-════════════════════════════════════════ -->
-<div id="panel-consulta" class="panel active">
-
-  <div class="card">
-    <h3>Tipo de consulta</h3>
-    <div class="toggleGroup">
-      <button class="toggleBtn active" id="btnRuc" onclick="setTipo('ruc')">RUC</button>
-      <button class="toggleBtn" id="btnDni" onclick="setTipo('dni')">DNI</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3 id="labelBuscar">Consultar RUC</h3>
-    <div class="row">
-      <div class="field">
-        <label id="labelNumero">Número RUC (11 dígitos)</label>
-        <input id="inputNumero" type="text" placeholder="20100070970" maxlength="11"
-               onkeydown="if(event.key==='Enter') consultar()" />
+<!-- ═══════════════════════ LOGIN ═══════════════════════ -->
+<main id="loginView" class="login-view">
+  <div class="login-card">
+    <div class="login-brand">
+      <span class="brand-mark">AP</span>
+      <div>
+        <h1 class="login-title">ApiPeru Proxy</h1>
+        <p class="login-sub">Consultas RUC y DNI con caché</p>
       </div>
-      <button class="btn btn-primary" id="btnConsultar" onclick="consultar()">Consultar</button>
     </div>
-  </div>
 
-  <div class="card" id="resultCard" style="display:none">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
-      <h3>Resultado</h3>
-      <span id="badgeFuente"></span>
-    </div>
-    <div id="resultBox" class="resultBox"></div>
-  </div>
-
-</div>
-
-<!-- ════════════════════════════════════════
-     TAB 2 – CARGA MASIVA
-════════════════════════════════════════ -->
-<div id="panel-bulk" class="panel">
-
-  <div class="card">
-    <h3>Tipo</h3>
-    <div class="toggleGroup">
-      <button class="toggleBtn active" id="btnBulkRuc" onclick="setBulkTipo('ruc')">RUC</button>
-      <button class="toggleBtn" id="btnBulkDni" onclick="setBulkTipo('dni')">DNI</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>Pegar números (uno por línea o separados por coma)</h3>
-    <textarea id="bulkTexto" rows="6"
-      placeholder="20100070970&#10;10749697682&#10;20601138498"></textarea>
-    <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
-      <button class="btn btn-primary" id="btnBulk" onclick="doBulk()">
-        Procesar lista
-      </button>
-      <span style="color:var(--muted); font-size:.85rem">— o bien —</span>
-      <label class="btn btn-secondary" style="cursor:pointer">
-        📁 Cargar archivo .txt / .csv
-        <input type="file" accept=".txt,.csv" style="display:none" onchange="cargarArchivo(this)" />
-      </label>
-    </div>
-  </div>
-
-  <!-- Resumen -->
-  <div class="card" id="bulkResumen" style="display:none">
-    <h3>Resumen</h3>
-    <div class="resumenGrid">
-      <div class="resCard"><div class="num" id="resTot">0</div><div class="lbl">Total</div></div>
-      <div class="resCard"><div class="num" id="resOk">0</div><div class="lbl">Exitosos</div></div>
-      <div class="resCard"><div class="num" id="resErr">0</div><div class="lbl">Errores</div></div>
-      <div class="resCard"><div class="num" id="resCacheBulk">0</div><div class="lbl">Desde caché</div></div>
-      <div class="resCard"><div class="num" id="resApiBulk">0</div><div class="lbl">Desde API</div></div>
-    </div>
-  </div>
-
-  <!-- Tabla resultados bulk -->
-  <div class="card" id="bulkTablaCard" style="display:none">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px">
-      <h3>Detalle</h3>
-      <button class="btn btn-secondary" onclick="exportarBulk()">⬇️ Exportar JSON</button>
-    </div>
-    <div class="tableWrap">
-      <table>
-        <thead id="bulkThead"></thead>
-        <tbody id="bulkTbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-</div>
-
-<!-- ════════════════════════════════════════
-     TAB 3 – LISTADO DE REGISTROS
-════════════════════════════════════════ -->
-<div id="panel-listado" class="panel">
-
-  <div class="card">
-    <div class="row" style="align-items:flex-end; gap:10px; flex-wrap:wrap">
-      <div class="field" style="min-width:120px; max-width:140px">
-        <label>Tipo</label>
-        <select id="lstTipo" onchange="cargarListado(1)">
-          <option value="todos">Todos</option>
-          <option value="ruc">RUC</option>
-          <option value="dni">DNI</option>
-        </select>
+    <form id="loginForm" class="stack" novalidate>
+      <div class="field">
+        <label class="label" for="loginEmail">Email</label>
+        <div class="input-icon">
+          <svg class="icon"><use href="#i-mail"/></svg>
+          <input id="loginEmail" class="input" type="email" placeholder="admin@example.com" autocomplete="username" />
+        </div>
       </div>
       <div class="field">
-        <label>Buscar</label>
-        <input id="lstQ" type="text" placeholder="Nombre, RUC o DNI..."
-               oninput="debounceListado()" />
+        <label class="label" for="loginPass">Contraseña</label>
+        <div class="input-icon">
+          <svg class="icon"><use href="#i-lock"/></svg>
+          <input id="loginPass" class="input" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
       </div>
-      <div class="field" style="min-width:80px; max-width:100px">
-        <label>Por página</label>
-        <select id="lstLimite" onchange="cargarListado(1)">
-          <option value="10">10</option>
-          <option value="20" selected>20</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
+      <p id="loginError" class="form-error" role="alert"></p>
+      <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Ingresar</button>
+    </form>
+  </div>
+</main>
+
+<!-- ═══════════════════════ APLICACIÓN ═══════════════════════ -->
+<div id="appView" class="app">
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">AP</span>
+        <span class="brand-name">ApiPeru <span>Proxy</span></span>
       </div>
-      <button class="btn btn-primary" onclick="cargarListado(1)">Buscar</button>
-      <button class="btn btn-secondary" onclick="exportarListado()">⬇️ CSV</button>
-    </div>
-  </div>
 
-  <div class="card">
-    <div id="lstEstado" style="color:var(--muted); font-size:.88rem; margin-bottom:12px"></div>
-    <div class="tableWrap" id="lstTablaWrap">
-      <table>
-        <thead id="lstThead"></thead>
-        <tbody id="lstTbody">
-          <tr><td colspan="8" style="text-align:center; padding:30px; color:var(--muted)">
-            Cargando…</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="pagination" id="lstPaginacion"></div>
-  </div>
+      <nav class="tabs" role="tablist" aria-label="Secciones">
+        <button class="tab active" role="tab" data-tab="consulta" aria-selected="true">
+          <svg class="icon"><use href="#i-search"/></svg><span>Consulta</span>
+        </button>
+        <button class="tab" role="tab" data-tab="bulk" aria-selected="false">
+          <svg class="icon"><use href="#i-layers"/></svg><span>Carga masiva</span>
+        </button>
+        <button class="tab" role="tab" data-tab="listado" aria-selected="false">
+          <svg class="icon"><use href="#i-list"/></svg><span>Registros</span>
+        </button>
+      </nav>
 
+      <div class="user-menu">
+        <button class="icon-btn" id="btnTheme" title="Cambiar tema" aria-label="Cambiar tema">
+          <svg class="icon icon-sun"><use href="#i-sun"/></svg>
+          <svg class="icon icon-moon"><use href="#i-moon"/></svg>
+        </button>
+        <span class="avatar" id="userAvatar">–</span>
+        <span class="user-name" id="userName">–</span>
+        <button class="icon-btn" id="btnLogout" title="Cerrar sesión" aria-label="Cerrar sesión">
+          <svg class="icon"><use href="#i-logout"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─────────────── CONSULTA INDIVIDUAL ─────────────── -->
+  <section id="panel-consulta" class="panel active" role="tabpanel">
+    <div class="page-head">
+      <h2 class="page-title">Consulta individual</h2>
+      <p class="page-sub">Busca un RUC o DNI. Si ya fue consultado antes, se responde desde la caché sin costo.</p>
+    </div>
+
+    <div class="card">
+      <form id="consultaForm" class="search-bar" novalidate>
+        <div class="segmented" role="radiogroup" aria-label="Tipo de documento">
+          <button type="button" class="seg active" data-tipo="ruc" role="radio" aria-checked="true">RUC</button>
+          <button type="button" class="seg" data-tipo="dni" role="radio" aria-checked="false">DNI</button>
+        </div>
+        <div class="search-input">
+          <svg class="icon"><use href="#i-search"/></svg>
+          <input id="inputNumero" class="input input-lg" type="text" inputmode="numeric"
+                 placeholder="20100070970" maxlength="11" autocomplete="off"
+                 aria-describedby="hintNumero" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" id="btnConsultar">Consultar</button>
+      </form>
+      <p class="hint" id="hintNumero">RUC de 11 dígitos</p>
+    </div>
+
+    <div class="card" id="resultCard" hidden>
+      <div class="card-head">
+        <div class="result-title">
+          <h3 id="resultTitulo">Resultado</h3>
+          <span id="badgeFuente"></span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" id="btnToggleJson">
+            <svg class="icon"><use href="#i-code"/></svg> <span>Ver JSON</span>
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btnCopiar">
+            <svg class="icon"><use href="#i-copy"/></svg> Copiar
+          </button>
+        </div>
+      </div>
+      <div id="resultBody" class="card-body"></div>
+      <pre id="resultJson" class="code-block" hidden></pre>
+    </div>
+  </section>
+
+  <!-- ─────────────── CARGA MASIVA ─────────────── -->
+  <section id="panel-bulk" class="panel" role="tabpanel">
+    <div class="page-head">
+      <h2 class="page-title">Carga masiva</h2>
+      <p class="page-sub">Procesa muchos números a la vez. Pégalos o carga un archivo .txt / .csv.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="segmented" role="radiogroup" aria-label="Tipo de documento">
+          <button type="button" class="seg active" data-bulk-tipo="ruc" role="radio" aria-checked="true">RUC</button>
+          <button type="button" class="seg" data-bulk-tipo="dni" role="radio" aria-checked="false">DNI</button>
+        </div>
+        <span class="counter" id="bulkContador">0 números</span>
+      </div>
+      <div class="card-body stack">
+        <label class="dropzone" id="dropZone">
+          <input type="file" id="bulkArchivo" accept=".txt,.csv" />
+          <svg class="icon icon-lg"><use href="#i-upload"/></svg>
+          <span><strong>Arrastra un archivo aquí</strong> o haz clic para seleccionarlo</span>
+          <small>.txt o .csv — un número por línea o separados por coma</small>
+        </label>
+        <textarea id="bulkTexto" class="input textarea" rows="6"
+                  placeholder="20100070970&#10;10749697682&#10;20601138498"></textarea>
+        <div class="btn-row end">
+          <button class="btn btn-ghost" id="btnBulkLimpiar">Limpiar</button>
+          <button class="btn btn-primary" id="btnBulk">
+            <svg class="icon"><use href="#i-play"/></svg> Procesar lista
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progreso en vivo -->
+    <div class="card progress-card" id="bulkProgreso" hidden>
+      <div class="progress-head">
+        <div class="progress-info">
+          <h3 id="progTitulo">Procesando…</h3>
+          <p class="progress-status" id="progEstado">Iniciando…</p>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnDetener">
+          <svg class="icon"><use href="#i-x"/></svg> Detener
+        </button>
+      </div>
+
+      <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progBarra">
+        <div class="progress-fill progress-ok" id="progFillOk"></div>
+        <div class="progress-fill progress-err" id="progFillErr"></div>
+      </div>
+
+      <div class="progress-meta">
+        <span><strong id="progHechos">0</strong> de <strong id="progTotal">0</strong> procesados</span>
+        <span>Faltan <strong id="progFaltan">0</strong></span>
+        <span class="progress-pct" id="progPct">0%</span>
+        <span class="progress-time">
+          <svg class="icon"><use href="#i-clock"/></svg>
+          <span id="progTiempo">0:00</span><span id="progEta" class="muted"></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="stats" id="bulkResumen" hidden>
+      <button type="button" class="stat" data-filtro="todos"><span class="stat-label">Total</span><span class="stat-value" id="resTot">0</span></button>
+      <button type="button" class="stat stat-success" data-filtro="ok"><span class="stat-label">Sin errores</span><span class="stat-value" id="resOk">0</span></button>
+      <button type="button" class="stat stat-danger" data-filtro="error"><span class="stat-label">Con errores</span><span class="stat-value" id="resErr">0</span></button>
+      <div class="stat stat-cache"><span class="stat-label">Desde caché</span><span class="stat-value" id="resCacheBulk">0</span></div>
+      <div class="stat stat-api"><span class="stat-label">Desde API</span><span class="stat-value" id="resApiBulk">0</span></div>
+    </div>
+
+    <div class="card" id="bulkTablaCard" hidden>
+      <div class="card-head">
+        <div class="segmented" role="radiogroup" aria-label="Filtrar resultados">
+          <button type="button" class="seg active" data-filtro="todos" role="radio" aria-checked="true">Todos <span class="seg-count" id="cntTodos">0</span></button>
+          <button type="button" class="seg" data-filtro="ok" role="radio" aria-checked="false">Sin errores <span class="seg-count" id="cntOk">0</span></button>
+          <button type="button" class="seg" data-filtro="error" role="radio" aria-checked="false">Con errores <span class="seg-count" id="cntErr">0</span></button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" id="btnReintentar" disabled>
+            <svg class="icon"><use href="#i-refresh"/></svg> <span>Reintentar errores</span>
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btnCopiarErrores">
+            <svg class="icon"><use href="#i-copy"/></svg> Copiar con error
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btnExportarBulk">
+            <svg class="icon"><use href="#i-download"/></svg> Exportar JSON
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead id="bulkThead"></thead>
+          <tbody id="bulkTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────── LISTADO ─────────────── -->
+  <section id="panel-listado" class="panel" role="tabpanel">
+    <div class="page-head">
+      <h2 class="page-title">Registros en caché</h2>
+      <p class="page-sub">Todos los RUC y DNI guardados en la base de datos.</p>
+    </div>
+
+    <div class="card">
+      <div class="filters">
+        <div class="field f-tipo">
+          <label class="label" for="lstTipo">Tipo</label>
+          <select id="lstTipo" class="input select">
+            <option value="todos">Todos</option>
+            <option value="ruc">RUC</option>
+            <option value="dni">DNI</option>
+          </select>
+        </div>
+        <div class="field f-buscar">
+          <label class="label" for="lstQ">Buscar</label>
+          <div class="search-input">
+            <svg class="icon"><use href="#i-search"/></svg>
+            <input id="lstQ" class="input" type="search" placeholder="Nombre, RUC o DNI…" />
+          </div>
+        </div>
+        <div class="field f-limite">
+          <label class="label" for="lstLimite">Por página</label>
+          <select id="lstLimite" class="input select">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <button class="btn btn-excel f-export" id="btnExportarListado"
+                title="Descarga en Excel todos los registros que coinciden con el filtro (sin límite de páginas)">
+          <svg class="icon"><use href="#i-sheet"/></svg> Exportar Excel
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead id="lstThead"></thead>
+          <tbody id="lstTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="table-foot">
+        <span id="lstEstado" class="muted"></span>
+        <nav class="pagination" id="lstPaginacion" aria-label="Paginación"></nav>
+      </div>
+    </div>
+  </section>
 </div>
 
-<!-- Toast -->
-<div id="toast"></div>
+<!-- Notificaciones -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script>
-/* ══════════════════════════════════════════════
-   ESTADO GLOBAL
-══════════════════════════════════════════════ */
-let token       = localStorage.getItem('token') || '';
-let tipoConsulta = 'ruc';
-let tipoBulk     = 'ruc';
-let bulkData     = null;
-let lstPagina    = 1;
-let debounceTimer;
-
-/* ══════════════════════════════════════════════
-   AUTH
-══════════════════════════════════════════════ */
-async function doLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass  = document.getElementById('loginPass').value;
-  const errEl = document.getElementById('loginError');
-  errEl.textContent = '';
-
-  if (!email || !pass) { errEl.textContent = 'Completa todos los campos.'; return; }
-
-  try {
-    const r = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pass }),
-    });
-    const d = await r.json();
-    if (!d.ok) { errEl.textContent = d.mensaje || 'Credenciales inválidas.'; return; }
-
-    token = d.token;
-    localStorage.setItem('token', token);
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('userInfo').style.display = 'flex';
-    document.getElementById('userName').textContent = d.usuario?.nombre || email;
-    cargarListado(1);
-  } catch (e) {
-    errEl.textContent = 'Error de red.';
-  }
-}
-
-function logout() {
-  token = '';
-  localStorage.removeItem('token');
-  document.getElementById('loginOverlay').style.display = 'flex';
-  document.getElementById('userInfo').style.display = 'none';
-}
-
-function authHeaders() {
-  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-}
-
-async function checkAuth(res) {
-  if (res.status === 401) { logout(); showToast('Sesión expirada.', 'error'); return false; }
-  return true;
-}
-
-/* ══════════════════════════════════════════════
-   TABS
-══════════════════════════════════════════════ */
-function showTab(name) {
-  document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['consulta','bulk','listado'][i] === name);
-  });
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.getElementById(`panel-${name}`).classList.add('active');
-  if (name === 'listado') cargarListado(lstPagina);
-}
-
-/* ══════════════════════════════════════════════
-   TAB 1 – CONSULTA INDIVIDUAL
-══════════════════════════════════════════════ */
-function setTipo(t) {
-  tipoConsulta = t;
-  document.getElementById('btnRuc').classList.toggle('active', t === 'ruc');
-  document.getElementById('btnDni').classList.toggle('active', t === 'dni');
-  document.getElementById('labelBuscar').textContent = t === 'ruc' ? 'Consultar RUC' : 'Consultar DNI';
-  document.getElementById('labelNumero').textContent = t === 'ruc'
-    ? 'Número RUC (11 dígitos)' : 'Número DNI (8 dígitos)';
-  document.getElementById('inputNumero').placeholder = t === 'ruc' ? '20100070970' : '74969768';
-  document.getElementById('inputNumero').maxLength = t === 'ruc' ? 11 : 8;
-  document.getElementById('resultCard').style.display = 'none';
-}
-
-async function consultar() {
-  const num = document.getElementById('inputNumero').value.trim();
-  if (!num) return;
-
-  const btn = document.getElementById('btnConsultar');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>';
-
-  const url = tipoConsulta === 'ruc' ? `/api/ruc/${num}` : `/api/dni/${num}`;
-
-  try {
-    const r = await fetch(url, { headers: authHeaders() });
-    if (!await checkAuth(r)) { btn.disabled = false; btn.textContent = 'Consultar'; return; }
-    const d = await r.json();
-
-    const box = document.getElementById('resultBox');
-    const card = document.getElementById('resultCard');
-    card.style.display = 'block';
-
-    if (!d.ok) {
-      box.className = 'resultBox error';
-      box.textContent = d.mensaje || 'Error';
-      document.getElementById('badgeFuente').innerHTML = '';
-    } else {
-      box.className = 'resultBox success';
-      const { fuente, ...rest } = d;
-      box.textContent = JSON.stringify(rest, null, 2);
-      document.getElementById('badgeFuente').innerHTML =
-        `<span class="badge badge-${fuente}">${fuente === 'cache' ? '💾 Caché' : '🌐 API'}</span>`;
-    }
-  } catch (e) {
-    showToast('Error de red', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Consultar';
-  }
-}
-
-/* ══════════════════════════════════════════════
-   TAB 2 – CARGA MASIVA
-══════════════════════════════════════════════ */
-function setBulkTipo(t) {
-  tipoBulk = t;
-  document.getElementById('btnBulkRuc').classList.toggle('active', t === 'ruc');
-  document.getElementById('btnBulkDni').classList.toggle('active', t === 'dni');
-}
-
-function cargarArchivo(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('bulkTexto').value = e.target.result;
-    showToast(`Archivo cargado: ${file.name}`, 'success');
-  };
-  reader.readAsText(file);
-}
-
-async function doBulk() {
-  const raw = document.getElementById('bulkTexto').value;
-  const numeros = raw.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
-
-  if (!numeros.length) { showToast('Ingresa al menos un número.', 'error'); return; }
-
-  const btn = document.getElementById('btnBulk');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Procesando…';
-
-  const endpoint = tipoBulk === 'ruc' ? '/api/bulk/ruc' : '/api/bulk/dni';
-
-  try {
-    const r = await fetch(endpoint, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ numeros }),
-    });
-    if (!await checkAuth(r)) { btn.disabled = false; btn.textContent = 'Procesar lista'; return; }
-    const d = await r.json();
-
-    if (!d.ok) { showToast(d.mensaje, 'error'); return; }
-
-    bulkData = d;
-    renderBulkResumen(d.resumen);
-    renderBulkTabla(d.resultados);
-    showToast(`${d.resumen.exitosos} de ${d.resumen.total} procesados.`, 'success');
-  } catch (e) {
-    showToast('Error de red', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Procesar lista';
-  }
-}
-
-function renderBulkResumen(r) {
-  document.getElementById('bulkResumen').style.display = 'block';
-  document.getElementById('resTot').textContent = r.total;
-  document.getElementById('resOk').textContent  = r.exitosos;
-  document.getElementById('resErr').textContent = r.errores;
-  document.getElementById('resCacheBulk').textContent = r.desde_cache;
-  document.getElementById('resApiBulk').textContent   = r.desde_api;
-}
-
-function renderBulkTabla(resultados) {
-  const card  = document.getElementById('bulkTablaCard');
-  const thead = document.getElementById('bulkThead');
-  const tbody = document.getElementById('bulkTbody');
-  card.style.display = 'block';
-
-  if (tipoBulk === 'ruc') {
-    thead.innerHTML = `<tr>
-      <th>RUC</th><th>Razón Social</th><th>Estado</th>
-      <th>Condición</th><th>Fuente</th><th>Estado Op.</th>
-    </tr>`;
-    tbody.innerHTML = resultados.map(r => r.ok ? `
-      <tr>
-        <td>${r.ruc}</td>
-        <td>${r.datos?.razon_social || r.datos?.nombre_o_razon_social || '—'}</td>
-        <td>${r.datos?.estado_contribuyente || r.datos?.estado || '—'}</td>
-        <td>${r.datos?.condicion_contribuyente || r.datos?.condicion || '—'}</td>
-        <td><span class="badge badge-${r.fuente}">${r.fuente}</span></td>
-        <td style="color:var(--success)">✔</td>
-      </tr>` : `
-      <tr>
-        <td>${r.ruc}</td><td colspan="4" style="color:var(--error)">${r.mensaje}</td>
-        <td style="color:var(--error)">✘</td>
-      </tr>`).join('');
-  } else {
-    thead.innerHTML = `<tr>
-      <th>DNI</th><th>Nombres</th><th>Ap. Paterno</th>
-      <th>Ap. Materno</th><th>Fuente</th><th>Estado Op.</th>
-    </tr>`;
-    tbody.innerHTML = resultados.map(r => r.ok ? `
-      <tr>
-        <td>${r.dni}</td>
-        <td>${r.datos?.nombres || '—'}</td>
-        <td>${r.datos?.apellido_paterno || '—'}</td>
-        <td>${r.datos?.apellido_materno || '—'}</td>
-        <td><span class="badge badge-${r.fuente}">${r.fuente}</span></td>
-        <td style="color:var(--success)">✔</td>
-      </tr>` : `
-      <tr>
-        <td>${r.dni}</td><td colspan="4" style="color:var(--error)">${r.mensaje}</td>
-        <td style="color:var(--error)">✘</td>
-      </tr>`).join('');
-  }
-}
-
-function exportarBulk() {
-  if (!bulkData) return;
-  const blob = new Blob([JSON.stringify(bulkData, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `bulk_${tipoBulk}_${Date.now()}.json`;
-  a.click();
-}
-
-/* ══════════════════════════════════════════════
-   TAB 3 – LISTADO
-══════════════════════════════════════════════ */
-function debounceListado() {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => cargarListado(1), 400);
-}
-
-async function cargarListado(pagina = 1) {
-  lstPagina = pagina;
-  const tipo   = document.getElementById('lstTipo').value;
-  const q      = document.getElementById('lstQ').value.trim();
-  const limite = document.getElementById('lstLimite').value;
-
-  const tbody = document.getElementById('lstTbody');
-  tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--muted)">
-    <span class="spinner"></span> Cargando…</td></tr>`;
-
-  const params = new URLSearchParams({ tipo, pagina, limite });
-  if (q) params.set('q', q);
-
-  try {
-    const r = await fetch(`/api/listado?${params}`, { headers: authHeaders() });
-    if (!await checkAuth(r)) return;
-    const d = await r.json();
-    if (!d.ok) { showToast(d.mensaje, 'error'); return; }
-
-    renderListado(d.registros, d.paginacion, tipo);
-  } catch (e) {
-    showToast('Error al cargar listado', 'error');
-  }
-}
-
-function renderListado(registros, pag, tipo) {
-  const thead = document.getElementById('lstThead');
-  const tbody = document.getElementById('lstTbody');
-  const estado = document.getElementById('lstEstado');
-  const pagEl  = document.getElementById('lstPaginacion');
-
-  estado.textContent = `${pag.total} registro(s) — Página ${pag.pagina} de ${pag.paginas || 1}`;
-
-  if (!registros.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--muted)">
-      Sin registros.</td></tr>`;
-    pagEl.innerHTML = '';
-    return;
-  }
-
-  if (tipo === 'ruc') {
-    thead.innerHTML = `<tr>
-      <th>RUC</th><th>Razón Social</th><th>Estado</th>
-      <th>Condición</th><th>Departamento</th><th>Consultas</th><th>Última Consulta</th>
-    </tr>`;
-    tbody.innerHTML = registros.map(r => `
-      <tr>
-        <td><code>${r.ruc}</code></td>
-        <td>${r.razon_social || '—'}</td>
-        <td>${r.estado_contribuyente || '—'}</td>
-        <td>${r.condicion_contribuyente || '—'}</td>
-        <td>${r.departamento || '—'}</td>
-        <td>${r.consultas}</td>
-        <td>${fmtDate(r.ultima_consulta)}</td>
-      </tr>`).join('');
-  } else if (tipo === 'dni') {
-    thead.innerHTML = `<tr>
-      <th>DNI</th><th>Nombre Completo</th><th>Nombres</th>
-      <th>Ap. Paterno</th><th>Ap. Materno</th><th>Consultas</th><th>Última Consulta</th>
-    </tr>`;
-    tbody.innerHTML = registros.map(r => `
-      <tr>
-        <td><code>${r.dni}</code></td>
-        <td>${r.nombre_completo || '—'}</td>
-        <td>${r.nombres || '—'}</td>
-        <td>${r.apellido_paterno || '—'}</td>
-        <td>${r.apellido_materno || '—'}</td>
-        <td>${r.consultas}</td>
-        <td>${fmtDate(r.ultima_consulta)}</td>
-      </tr>`).join('');
-  } else {
-    // todos
-    thead.innerHTML = `<tr>
-      <th>Número</th><th>Tipo</th><th>Nombre</th>
-      <th>Estado</th><th>Consultas</th><th>Última Consulta</th>
-    </tr>`;
-    tbody.innerHTML = registros.map(r => `
-      <tr>
-        <td><code>${r.numero}</code></td>
-        <td><span class="badge badge-${r.tipo === 'ruc' ? 'api' : 'cache'}">${r.tipo.toUpperCase()}</span></td>
-        <td>${r.nombre || '—'}</td>
-        <td>${r.estado || '—'}</td>
-        <td>${r.consultas}</td>
-        <td>${fmtDate(r.ultima_consulta)}</td>
-      </tr>`).join('');
-  }
-
-  // Paginación
-  const pages = pag.paginas || 1;
-  let html = '';
-  if (pag.pagina > 1)
-    html += `<button class="pageBtn" onclick="cargarListado(${pag.pagina - 1})">‹ Anterior</button>`;
-
-  const start = Math.max(1, pag.pagina - 2);
-  const end   = Math.min(pages, pag.pagina + 2);
-  for (let i = start; i <= end; i++) {
-    html += `<button class="pageBtn${i === pag.pagina ? ' active' : ''}"
-      onclick="cargarListado(${i})">${i}</button>`;
-  }
-  if (pag.pagina < pages)
-    html += `<button class="pageBtn" onclick="cargarListado(${pag.pagina + 1})">Siguiente ›</button>`;
-
-  pagEl.innerHTML = html;
-}
-
-async function exportarListado() {
-  const tipo   = document.getElementById('lstTipo').value;
-  const q      = document.getElementById('lstQ').value.trim();
-  const params = new URLSearchParams({ tipo, pagina: 1, limite: 1000 });
-  if (q) params.set('q', q);
-
-  try {
-    const r = await fetch(`/api/listado?${params}`, { headers: authHeaders() });
-    const d = await r.json();
-    if (!d.ok) return;
-
-    const rows = d.registros;
-    if (!rows.length) { showToast('Sin registros para exportar', 'error'); return; }
-
-    const keys = Object.keys(rows[0]);
-    const csv  = [keys.join(','),
-      ...rows.map(row => keys.map(k => `"${(row[k] ?? '').toString().replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const a    = document.createElement('a');
-    a.href     = URL.createObjectURL(blob);
-    a.download = `listado_${tipo}_${Date.now()}.csv`;
-    a.click();
-    showToast('CSV exportado', 'success');
-  } catch (e) {
-    showToast('Error al exportar', 'error');
-  }
-}
-
-/* ══════════════════════════════════════════════
-   UTILIDADES
-══════════════════════════════════════════════ */
-function fmtDate(s) {
-  if (!s) return '—';
-  return new Date(s).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
-}
-
-function showToast(msg, type = 'success') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className   = `show ${type}`;
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.className = ''; }, 3000);
-}
-
-/* ══════════════════════════════════════════════
-   INIT
-══════════════════════════════════════════════ */
-(function init() {
-  if (token) {
-    // Verificar token vigente
-    fetch('/api/auth/perfil', { headers: authHeaders() }).then(r => {
-      if (r.ok) return r.json();
-      logout(); return null;
-    }).then(d => {
-      if (d?.ok) {
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('userInfo').style.display = 'flex';
-        document.getElementById('userName').textContent = d.usuario?.nombre || '';
-        cargarListado(1);
-      }
-    }).catch(() => logout());
-  }
-})();
-</script>
 </body>
 </html>

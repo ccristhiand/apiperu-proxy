@@ -1,150 +1,86 @@
-const db             = require('../config/db');
-const apiPeruService = require('../services/apiPeru.service');
+const { procesarLote, resumir, TIPOS } = require('../services/bulk.service');
+const { RPM } = require('../services/apiPeru.service');
+
+function validarNumeros(req, res) {
+  const { numeros } = req.body;
+  if (!Array.isArray(numeros) || !numeros.length) {
+    res.status(400).json({ ok: false, mensaje: 'Envía un array "numeros" con los RUCs o DNIs.' });
+    return null;
+  }
+  return numeros;
+}
 
 /* ─────────────────────────────────────────
-   POST /api/bulk/ruc
+   POST /api/bulk/ruc   y   POST /api/bulk/dni
    Body: { "numeros": ["20100070970", ...] }
+   Responde todo junto al terminar.
 ───────────────────────────────────────── */
-async function bulkRuc(req, res) {
-  const { numeros } = req.body;
+const bulkPorTipo = (tipo) => async (req, res) => {
+  const numeros = validarNumeros(req, res);
+  if (!numeros) return;
 
-  if (!Array.isArray(numeros) || !numeros.length)
-    return res.status(400).json({ ok: false, mensaje: 'Envía un array "numeros" con los RUCs.' });
-
-
-  const invalidos = numeros.filter(n => !/^\d{11}$/.test(String(n).trim()));
-  if (invalidos.length)
-    return res.status(400).json({ ok: false, mensaje: `RUCs inválidos: ${invalidos.join(', ')}` });
-
-  const resultados = [];
-
-  for (const rucRaw of numeros) {
-    const ruc = String(rucRaw).trim();
-    try {
-      // ¿Está en caché?
-      const [filas] = await db.query('SELECT * FROM cache_ruc WHERE ruc = ?', [ruc]);
-      if (filas.length) {
-        await db.query('UPDATE cache_ruc SET consultas = consultas + 1 WHERE ruc = ?', [ruc]);
-        await _log(req, 'ruc', ruc, 'cache');
-        const { datos_extra, ...rest } = filas[0];
-        resultados.push({ ruc, fuente: 'cache', ok: true, datos: rest });
-        continue;
-      }
-
-      // No está → consultar API
-      const apiData = await apiPeruService.consultarRuc(ruc);
-      await db.query(
-        `INSERT INTO cache_ruc
-           (ruc, razon_social, estado_contribuyente, condicion_contribuyente,
-            departamento, provincia, distrito, direccion, datos_extra)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          ruc,
-          apiData.nombre_o_razon_social || '',
-          apiData.estado              || null,
-          apiData.condicion           || null,
-          apiData.departamento        || null,
-          apiData.provincia           || null,
-          apiData.distrito            || null,
-          apiData.direccion_completa || apiData.direccion || null,
-          JSON.stringify(apiData),
-        ]
-      );
-      await _log(req, 'ruc', ruc, 'api');
-      resultados.push({ ruc, fuente: 'api', ok: true, datos: apiData });
-
-    } catch (err) {
-      resultados.push({ ruc, ok: false, mensaje: err.message });
-    }
+  try {
+    const resultados = await procesarLote(tipo, numeros, { usuarioId: req.usuario?.id, ip: req.ip });
+    return res.json({ ok: true, resumen: resumir(resultados), resultados });
+  } catch (err) {
+    console.error(`bulk ${tipo} error:`, err);
+    return res.status(500).json({ ok: false, mensaje: 'Error al procesar el lote.' });
   }
-
-  return res.json({
-    ok: true,
-    resumen: {
-      total:        resultados.length,
-      exitosos:     resultados.filter(r => r.ok).length,
-      errores:      resultados.filter(r => !r.ok).length,
-      desde_cache:  resultados.filter(r => r.ok && r.fuente === 'cache').length,
-      desde_api:    resultados.filter(r => r.ok && r.fuente === 'api').length,
-    },
-    resultados,
-  });
-}
+};
 
 /* ─────────────────────────────────────────
-   POST /api/bulk/dni
-   Body: { "numeros": ["74969768", ...] }
+   POST /api/bulk/:tipo/stream
+   Body: { "numeros": [...] }
+
+   Responde en vivo con NDJSON (un objeto JSON por línea):
+     { "evento": "inicio",    "total": 500, "rpm": 60 }
+     { "evento": "resultado", "i": 12, "resultado": { ok, fuente, datos | mensaje } }
+     { "evento": "espera",    "ms": 35000 }      ← esperando cupo de ApiPeruDev
+     { "evento": "ping" }                        ← mantiene viva la conexión
+     { "evento": "fin",       "resumen": { ... } }
+     { "evento": "error",     "mensaje": "..." }
+   Si el cliente cierra la conexión, el proceso se cancela.
 ───────────────────────────────────────── */
-async function bulkDni(req, res) {
-  const { numeros } = req.body;
+async function bulkStream(req, res) {
+  const { tipo } = req.params;
+  if (!TIPOS.includes(tipo))
+    return res.status(404).json({ ok: false, mensaje: 'Tipo no soportado. Usa "ruc" o "dni".' });
 
-  if (!Array.isArray(numeros) || !numeros.length)
-    return res.status(400).json({ ok: false, mensaje: 'Envía un array "numeros" con los DNIs.' });
+  const numeros = validarNumeros(req, res);
+  if (!numeros) return;
 
-
-  const invalidos = numeros.filter(n => !/^\d{8}$/.test(String(n).trim()));
-  if (invalidos.length)
-    return res.status(400).json({ ok: false, mensaje: `DNIs inválidos: ${invalidos.join(', ')}` });
-
-  const resultados = [];
-
-  for (const dniRaw of numeros) {
-    const dni = String(dniRaw).trim();
-    try {
-      const [filas] = await db.query('SELECT * FROM cache_dni WHERE dni = ?', [dni]);
-      if (filas.length) {
-        await db.query('UPDATE cache_dni SET consultas = consultas + 1 WHERE dni = ?', [dni]);
-        await _log(req, 'dni', dni, 'cache');
-        const { datos_extra, ...rest } = filas[0];
-        resultados.push({ dni, fuente: 'cache', ok: true, datos: rest });
-        continue;
-      }
-
-      const apiData = await apiPeruService.consultarDni(dni);
-      await db.query(
-        `INSERT INTO cache_dni
-           (dni, nombres, apellido_paterno, apellido_materno, codigo_verificacion, datos_extra)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          dni,
-          apiData.nombres          || '',
-          apiData.apellido_paterno || null,
-          apiData.apellido_materno || null,
-          apiData.codigo_verificacion || null,
-          JSON.stringify(apiData),
-        ]
-      );
-      await _log(req, 'dni', dni, 'api');
-      resultados.push({ dni, fuente: 'api', ok: true, datos: apiData });
-
-    } catch (err) {
-      resultados.push({ dni, ok: false, mensaje: err.message });
-    }
-  }
-
-  return res.json({
-    ok: true,
-    resumen: {
-      total:        resultados.length,
-      exitosos:     resultados.filter(r => r.ok).length,
-      errores:      resultados.filter(r => !r.ok).length,
-      desde_cache:  resultados.filter(r => r.ok && r.fuente === 'cache').length,
-      desde_api:    resultados.filter(r => r.ok && r.fuente === 'api').length,
-    },
-    resultados,
+  res.writeHead(200, {
+    'Content-Type':      'application/x-ndjson; charset=utf-8',
+    'Cache-Control':     'no-cache, no-transform',
+    'X-Accel-Buffering': 'no',   // Nginx: no acumular la respuesta
   });
-}
 
-/* helper: registrar en log_consultas (sin romper si falla) */
-async function _log(req, tipo, numero, fuente) {
+  const enviar = (obj) => { if (!res.writableEnded) res.write(JSON.stringify(obj) + '\n'); };
+
+  const cancelar = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) cancelar.abort(); });
+  const ping = setInterval(() => enviar({ evento: 'ping' }), 15_000);
+
+  enviar({ evento: 'inicio', total: numeros.length, rpm: RPM });
+
   try {
-    await db.query(
-      'INSERT INTO log_consultas (usuario_id, tipo, numero, fuente, ip) VALUES (?, ?, ?, ?, ?)',
-      [req.usuario?.id || null, tipo, numero, fuente, req.ip]
-    );
-  } catch (e) {
-    console.error('Log error:', e.message);
+    const resultados = await procesarLote(tipo, numeros, {
+      usuarioId:   req.usuario?.id,
+      ip:          req.ip,
+      signal:      cancelar.signal,
+      onResultado: (i, resultado) => enviar({ evento: 'resultado', i, resultado }),
+      onEspera:    (ms) => enviar({ evento: 'espera', ms }),
+    });
+    enviar({ evento: 'fin', resumen: resumir(resultados) });
+  } catch (err) {
+    if (!cancelar.signal.aborted) {
+      console.error(`bulk stream ${tipo} error:`, err);
+      enviar({ evento: 'error', mensaje: 'Error al procesar el lote.' });
+    }
+  } finally {
+    clearInterval(ping);
+    res.end();
   }
 }
 
-module.exports = { bulkRuc, bulkDni };
+module.exports = { bulkRuc: bulkPorTipo('ruc'), bulkDni: bulkPorTipo('dni'), bulkStream };

@@ -1,0 +1,41 @@
+/* ── Reset y base ─────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { line-height: 1.25; font-weight: 650; }
+h3 { font-size: 15px; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+
+code, pre { font-family: var(--font-mono); }
+
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Iconos del sprite SVG */
+.icon {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.icon-lg { width: 28px; height: 28px; stroke-width: 1.6; }
+
+.muted { color: var(--text-2); }
+
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

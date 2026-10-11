@@ -9,7 +9,7 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Middlewares globales ─────────────────────────────────────
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));   // lotes grandes de carga masiva
 app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting: máx 1000 peticiones por IP cada 15 min
