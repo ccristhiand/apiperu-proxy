@@ -235,3 +235,8 @@
 @media (max-width: 640px) {
   .toast { left: 16px; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); max-width: none; }
 }
+
+/* Etiqueta de tipo de documento (vista "Todos") */
+.badge-tipo-ruc   { background: var(--primary-soft); color: var(--primary); }
+.badge-tipo-dni   { background: var(--teal-soft);    color: var(--teal); }
+.badge-tipo-placa { background: var(--warning-soft); color: var(--warning); }

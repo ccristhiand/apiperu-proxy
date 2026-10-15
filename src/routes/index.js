@@ -4,6 +4,7 @@ const router       = express.Router();
 const authCtrl     = require('../controllers/auth.controller');
 const rucCtrl      = require('../controllers/ruc.controller');
 const dniCtrl      = require('../controllers/dni.controller');
+const placaCtrl    = require('../controllers/placa.controller');
 const bulkCtrl     = require('../controllers/bulk.controller');
 const listadoCtrl  = require('../controllers/listado.controller');
 const exportarCtrl = require('../controllers/exportar.controller');
@@ -17,10 +18,12 @@ router.get ('/auth/perfil',   auth, authCtrl.perfil);
 // ── Consulta individual ───────────────────────────────────────
 router.get('/ruc/:ruc', auth, rucCtrl.consultarRuc);
 router.get('/dni/:dni', auth, dniCtrl.consultarDni);
+router.get('/placa/:placa', auth, placaCtrl.consultarPlaca);   // consume 2 del plan
 
 // ── Carga masiva ──────────────────────────────────────────────
 router.post('/bulk/ruc', auth, bulkCtrl.bulkRuc);
 router.post('/bulk/dni', auth, bulkCtrl.bulkDni);
+router.post('/bulk/placa', auth, bulkCtrl.bulkPlaca);
 router.post('/bulk/:tipo/stream', auth, bulkCtrl.bulkStream);   // progreso en vivo (NDJSON)
 
 // ── Listado de registros cacheados ────────────────────────────

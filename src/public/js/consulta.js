@@ -1,12 +1,28 @@
 /* ══════════════════════════════════════════════
-   Pestaña: Consulta individual (RUC / DNI)
+   Pestaña: Consulta individual (RUC / DNI / Placa)
 ══════════════════════════════════════════════ */
 import { api, SesionExpiradaError } from './api.js';
 import { $, esc, icon, setLoading, toast, activarSegmento } from './ui.js';
 
 const TIPOS = {
-  ruc: { largo: 11, placeholder: '20100070970', hint: 'RUC de 11 dígitos' },
-  dni: { largo: 8,  placeholder: '74969768',    hint: 'DNI de 8 dígitos' },
+  ruc: {
+    maxLength: 11, placeholder: '20100070970', hint: 'RUC de 11 dígitos',
+    limpiar: (v) => v.replace(/\D/g, ''),
+    valido: (v) => /^\d{11}$/.test(v), error: 'El RUC debe tener 11 dígitos.',
+    modo: 'numeric', icono: 'building',
+  },
+  dni: {
+    maxLength: 8, placeholder: '74969768', hint: 'DNI de 8 dígitos',
+    limpiar: (v) => v.replace(/\D/g, ''),
+    valido: (v) => /^\d{8}$/.test(v), error: 'El DNI debe tener 8 dígitos.',
+    modo: 'numeric', icono: 'user',
+  },
+  placa: {
+    maxLength: 7, placeholder: 'ABC123', hint: 'Placa de 6 o 7 letras y números, sin guion · consume 2 consultas del plan',
+    limpiar: (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+    valido: (v) => /^[A-Z0-9]{6,7}$/.test(v), error: 'La placa debe tener 6 o 7 letras y números.',
+    modo: 'text', icono: 'car',
+  },
 };
 
 /** Etiquetas legibles para las claves que devuelve la API. */
@@ -19,6 +35,9 @@ const ETIQUETAS = {
   departamento: 'Departamento', provincia: 'Provincia', distrito: 'Distrito', ubigeo: 'Ubigeo',
   nombres: 'Nombres', apellido_paterno: 'Apellido paterno', apellido_materno: 'Apellido materno',
   nombre_completo: 'Nombre completo', codigo_verificacion: 'Código de verificación',
+  placa: 'Placa', marca: 'Marca', modelo: 'Modelo', anio: 'Año',
+  tipo_vehiculo: 'Tipo de vehículo', clase_vehiculo: 'Clase', numero_asientos: 'N° de asientos',
+  vin: 'VIN', categoria_mtc: 'Categoría MTC',
 };
 
 const CAMPOS_ANCHOS = new Set(['direccion', 'direccion_completa']);
@@ -42,8 +61,9 @@ function setTipo(nuevo, boton) {
   const input = $('inputNumero');
   activarSegmento(document.querySelectorAll('[data-tipo]'), boton);
   input.placeholder = cfg.placeholder;
-  input.maxLength = cfg.largo;
-  input.value = input.value.slice(0, cfg.largo);
+  input.maxLength = cfg.maxLength;
+  input.inputMode = cfg.modo;
+  input.value = cfg.limpiar(input.value).slice(0, cfg.maxLength);
   $('hintNumero').textContent = cfg.hint;
   $('resultCard').hidden = true;
   input.focus();
@@ -73,8 +93,9 @@ function renderResultado(d) {
     : `<span class="badge badge-api">${icon('globe')} API</span>`;
 
   const datos = d.datos || {};
-  const nombre = datos.razon_social || datos.nombre_o_razon_social || datos.nombre_completo || '—';
-  const id = datos.ruc || datos.dni || '';
+  const nombre = datos.razon_social || datos.nombre_o_razon_social || datos.nombre_completo
+    || [datos.marca, datos.modelo, datos.anio].filter(Boolean).join(' ') || '—';
+  const id = datos.ruc || datos.dni || datos.placa || '';
 
   const items = Object.entries(datos).map(([clave, valor]) => {
     const vacio = valor === null || valor === undefined || valor === '';
@@ -88,7 +109,7 @@ function renderResultado(d) {
 
   body.innerHTML = `
     <div class="result-hero">
-      <span class="hero-icon">${icon(tipo === 'ruc' ? 'building' : 'user')}</span>
+      <span class="hero-icon">${icon(TIPOS[tipo].icono)}</span>
       <div>
         <div class="hero-name">${esc(nombre)}</div>
         <div class="hero-id">${esc(tipo.toUpperCase())} ${esc(id)}</div>
@@ -99,12 +120,12 @@ function renderResultado(d) {
 
 async function consultar(e) {
   e.preventDefault();
-  const num = $('inputNumero').value.trim();
-  const { largo } = TIPOS[tipo];
+  const cfg = TIPOS[tipo];
+  const num = cfg.limpiar($('inputNumero').value);
 
   if (!num) return;
-  if (num.length !== largo) {
-    toast(`El ${tipo.toUpperCase()} debe tener ${largo} dígitos.`, 'error');
+  if (!cfg.valido(num)) {
+    toast(cfg.error, 'error');
     return;
   }
 
@@ -123,9 +144,9 @@ export function initConsulta() {
   document.querySelectorAll('[data-tipo]').forEach((b) =>
     b.addEventListener('click', () => setTipo(b.dataset.tipo, b)));
 
-  // Solo dígitos
+  // Solo los caracteres válidos para el tipo elegido (dígitos, o letras y números en placas)
   $('inputNumero').addEventListener('input', (e) => {
-    e.target.value = e.target.value.replace(/\D/g, '');
+    e.target.value = TIPOS[tipo].limpiar(e.target.value);
   });
 
   $('consultaForm').addEventListener('submit', consultar);

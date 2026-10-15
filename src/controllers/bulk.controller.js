@@ -1,17 +1,17 @@
 const { procesarLote, resumir, TIPOS } = require('../services/bulk.service');
-const { RPM } = require('../services/apiPeru.service');
+const { RPM, COSTO } = require('../services/apiPeru.service');
 
 function validarNumeros(req, res) {
   const { numeros } = req.body;
   if (!Array.isArray(numeros) || !numeros.length) {
-    res.status(400).json({ ok: false, mensaje: 'Envía un array "numeros" con los RUCs o DNIs.' });
+    res.status(400).json({ ok: false, mensaje: 'Envía un array "numeros" con los RUCs, DNIs o placas.' });
     return null;
   }
   return numeros;
 }
 
 /* ─────────────────────────────────────────
-   POST /api/bulk/ruc   y   POST /api/bulk/dni
+   POST /api/bulk/ruc  ·  /api/bulk/dni  ·  /api/bulk/placa
    Body: { "numeros": ["20100070970", ...] }
    Responde todo junto al terminar.
 ───────────────────────────────────────── */
@@ -44,7 +44,7 @@ const bulkPorTipo = (tipo) => async (req, res) => {
 async function bulkStream(req, res) {
   const { tipo } = req.params;
   if (!TIPOS.includes(tipo))
-    return res.status(404).json({ ok: false, mensaje: 'Tipo no soportado. Usa "ruc" o "dni".' });
+    return res.status(404).json({ ok: false, mensaje: `Tipo no soportado. Usa: ${TIPOS.join(', ')}.` });
 
   const numeros = validarNumeros(req, res);
   if (!numeros) return;
@@ -61,7 +61,8 @@ async function bulkStream(req, res) {
   res.on('close', () => { if (!res.writableEnded) cancelar.abort(); });
   const ping = setInterval(() => enviar({ evento: 'ping' }), 15_000);
 
-  enviar({ evento: 'inicio', total: numeros.length, rpm: RPM });
+  // rpm = números por minuto que admite el plan para este tipo (una placa consume 2)
+  enviar({ evento: 'inicio', total: numeros.length, rpm: Math.floor(RPM / (COSTO[tipo] || 1)) });
 
   try {
     const resultados = await procesarLote(tipo, numeros, {
@@ -83,4 +84,9 @@ async function bulkStream(req, res) {
   }
 }
 
-module.exports = { bulkRuc: bulkPorTipo('ruc'), bulkDni: bulkPorTipo('dni'), bulkStream };
+module.exports = {
+  bulkRuc:   bulkPorTipo('ruc'),
+  bulkDni:   bulkPorTipo('dni'),
+  bulkPlaca: bulkPorTipo('placa'),
+  bulkStream,
+};

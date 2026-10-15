@@ -73,6 +73,15 @@ Esto crea la BD, las tablas y un usuario admin inicial:
 
 > ⚠️ Cambia la password inmediatamente después de instalar.
 
+### Actualizar una base de datos existente
+
+Si la base se creó antes de agregar las consultas de placas, aplica la migración
+(es segura de ejecutar más de una vez):
+
+```bash
+mysql -u root -p apiperu_cache < sql/migrations/001_placas.sql
+```
+
 ### 4. Iniciar el servidor
 
 ```bash
@@ -162,14 +171,33 @@ Authorization: Bearer eyJhbGci...
 }
 ```
 
-#### `POST /api/bulk/ruc` · `POST /api/bulk/dni` 🔒
+#### `GET /api/placa/:placa` 🔒
+Placa vehicular de 6 o 7 letras y números (se aceptan `abc-123` o `ABC 123`).
+Fuente: Pacífico vía ApiPeruDev. **Cada consulta nueva consume 2 del plan.**
+```
+GET /api/placa/ABC123
+Authorization: Bearer eyJhbGci...
+
+// Response
+{
+  "ok": true,
+  "fuente": "api",   // o "cache"
+  "datos": {
+    "placa": "ABC123", "marca": "TOYOTA", "modelo": "YARIS", "anio": 2019,
+    "tipo_vehiculo": "...", "clase_vehiculo": "...", "numero_asientos": 5,
+    "vin": "...", "categoria_mtc": "M1"
+  }
+}
+```
+
+#### `POST /api/bulk/ruc` · `POST /api/bulk/dni` · `POST /api/bulk/placa` 🔒
 ```json
 // Request
 { "numeros": ["20100070970", "20601138498"] }
 // Response: { ok, resumen: { total, exitosos, errores, desde_cache, desde_api }, resultados: [...] }
 ```
 
-#### `POST /api/bulk/:tipo/stream` 🔒  (`tipo` = `ruc` | `dni`)
+#### `POST /api/bulk/:tipo/stream` 🔒  (`tipo` = `ruc` | `dni` | `placa`)
 Igual que el anterior, pero responde **en vivo** con NDJSON (un JSON por línea),
 para mostrar el progreso en tiempo real:
 ```

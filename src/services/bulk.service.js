@@ -5,11 +5,24 @@ const apiPeruService = require('./apiPeru.service');
 // lo sigue controlando el RateLimiter; esto solo evita esperar una por una).
 const CONCURRENCIA = parseInt(process.env.APIPERU_CONCURRENCIA, 10) || 3;
 
+const sinEspacios = (n) => String(n ?? '').trim();
+const entero = (v) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+
+/**
+ * Definición de cada tipo de consulta: tabla de caché, cómo validar el número
+ * y cómo guardar la respuesta de ApiPeruDev. Para agregar un tipo nuevo basta
+ * con sumar una entrada aquí (y su tabla en sql/).
+ */
 const CONFIG = {
   ruc: {
     tabla: 'cache_ruc',
     campo: 'ruc',
-    largo: 11,
+    normalizar: sinEspacios,
+    formato: /^\d{11}$/,
+    mensajeFormato: 'el RUC debe tener 11 dígitos',
     consultar: apiPeruService.consultarRuc,
     insertar: (ruc, d) => [
       `INSERT INTO cache_ruc
@@ -33,7 +46,9 @@ const CONFIG = {
   dni: {
     tabla: 'cache_dni',
     campo: 'dni',
-    largo: 8,
+    normalizar: sinEspacios,
+    formato: /^\d{8}$/,
+    mensajeFormato: 'el DNI debe tener 8 dígitos',
     consultar: apiPeruService.consultarDni,
     insertar: (dni, d) => [
       `INSERT INTO cache_dni
@@ -46,6 +61,34 @@ const CONFIG = {
         d.apellido_paterno    || null,
         d.apellido_materno    || null,
         d.codigo_verificacion || null,
+        JSON.stringify(d),
+      ],
+    ],
+  },
+  placa: {
+    tabla: 'cache_placa',
+    campo: 'placa',
+    // "abc-123" o "ABC 123" → "ABC123"
+    normalizar: (n) => String(n ?? '').toUpperCase().replace(/[\s-]/g, ''),
+    formato: /^[A-Z0-9]{6,7}$/,
+    mensajeFormato: 'la placa debe tener 6 o 7 letras y números',
+    consultar: apiPeruService.consultarPlaca,
+    insertar: (placa, d) => [
+      `INSERT INTO cache_placa
+         (placa, marca, modelo, anio, tipo_vehiculo, clase_vehiculo,
+          numero_asientos, vin, categoria_mtc, datos_extra)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE consultas = consultas + 1`,
+      [
+        placa,
+        d.marca          || null,
+        d.modelo         || null,
+        entero(d.anio),
+        d.tipo_vehiculo  || null,
+        d.clase_vehiculo || null,
+        entero(d.numero_asientos),
+        d.vin            || null,
+        d.categoria_mtc  || null,
         JSON.stringify(d),
       ],
     ],
@@ -81,7 +124,7 @@ async function sumarConsultas(cfg, numeros) {
 }
 
 /**
- * Procesa un lote de RUCs o DNIs.
+ * Procesa un lote de RUCs, DNIs o placas.
  *  1. Los de formato inválido se marcan como error (no detienen el lote).
  *  2. Los que ya están en caché se resuelven con una sola consulta a la BD.
  *  3. El resto se consulta en ApiPeruDev respetando el límite por minuto.
@@ -93,7 +136,6 @@ async function sumarConsultas(cfg, numeros) {
  */
 async function procesarLote(tipo, numeros, { usuarioId = null, ip = null, onResultado, onEspera, signal } = {}) {
   const cfg = CONFIG[tipo];
-  const formato = new RegExp(`^\\d{${cfg.largo}}$`);
   const resultados = new Array(numeros.length);
 
   const emitir = (i, numero, r) => {
@@ -104,12 +146,12 @@ async function procesarLote(tipo, numeros, { usuarioId = null, ip = null, onResu
   // 1. Formato
   const validos = [];
   numeros.forEach((n, i) => {
-    const numero = String(n ?? '').trim();
-    if (formato.test(numero)) validos.push({ i, numero });
+    const numero = cfg.normalizar(n);
+    if (cfg.formato.test(numero)) validos.push({ i, numero });
     else emitir(i, numero, {
       ok: false,
       reintentable: false,
-      mensaje: `Formato inválido: el ${tipo.toUpperCase()} debe tener ${cfg.largo} dígitos.`,
+      mensaje: `Formato inválido: ${cfg.mensajeFormato}.`,
     });
   });
   if (!validos.length) return resultados;
@@ -149,7 +191,9 @@ async function procesarLote(tipo, numeros, { usuarioId = null, ip = null, onResu
         r = { ok: true, fuente: 'api', datos };
       } catch (err) {
         if (signal?.aborted) return;
-        r = { ok: false, reintentable: true, mensaje: err.message };
+        // "No encontrado" o dato inválido no cambia al reintentar (y gastaría cupo)
+        const definitivo = err.statusCode === 404 || err.statusCode === 400;
+        r = { ok: false, reintentable: !definitivo, mensaje: err.message };
       }
       indices.forEach((i) => emitir(i, numero, r));
     }
@@ -170,4 +214,4 @@ function resumir(resultados) {
   };
 }
 
-module.exports = { procesarLote, resumir, TIPOS: Object.keys(CONFIG) };
+module.exports = { procesarLote, resumir, CONFIG, TIPOS: Object.keys(CONFIG) };

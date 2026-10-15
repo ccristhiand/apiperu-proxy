@@ -43,6 +43,34 @@ const HOJAS = {
     omitirExtra: ['numero', 'dni', 'nombres', 'apellido_paterno', 'apellido_materno',
                   'codigo_verificacion', 'nombre_completo'],
   },
+  placa: {
+    nombre: 'Placas',
+    tabla:  'cache_placa',
+    buscar: '(placa LIKE ? OR marca LIKE ? OR modelo LIKE ?)',
+    columnas: [
+      { header: 'Placa',            key: 'placa',           width: 10, texto: true },
+      { header: 'Marca',            key: 'marca',           width: 18 },
+      { header: 'Modelo',           key: 'modelo',          width: 24 },
+      { header: 'Año',              key: 'anio',            width: 8 },
+      { header: 'Tipo de vehículo', key: 'tipo_vehiculo',   width: 20 },
+      { header: 'Clase',            key: 'clase_vehiculo',  width: 20 },
+      { header: 'N° asientos',      key: 'numero_asientos', width: 11 },
+      { header: 'VIN',              key: 'vin',             width: 22, texto: true },
+      { header: 'Categoría MTC',    key: 'categoria_mtc',   width: 14 },
+      { header: 'Consultas',        key: 'consultas',       width: 11 },
+      { header: 'Primera consulta', key: 'primera_consulta', width: 18, fecha: true },
+      { header: 'Última consulta',  key: 'ultima_consulta',  width: 18, fecha: true },
+    ],
+    omitirExtra: ['placa', 'marca', 'modelo', 'anio', 'tipo_vehiculo', 'clase_vehiculo',
+                  'numero_asientos', 'vin', 'categoria_mtc'],
+  },
+};
+
+/* Columnas comunes de cada tipo para la hoja "Todos". */
+const RESUMEN = {
+  ruc:   { hoja: HOJAS.ruc,   select: `ruc AS numero, 'RUC' AS tipo, razon_social AS nombre, estado_contribuyente AS estado` },
+  dni:   { hoja: HOJAS.dni,   select: `dni AS numero, 'DNI' AS tipo, nombre_completo AS nombre, NULL AS estado` },
+  placa: { hoja: HOJAS.placa, select: `placa AS numero, 'Placa' AS tipo, CONCAT_WS(' ', marca, modelo, anio) AS nombre, clase_vehiculo AS estado` },
 };
 
 /* Excel no guarda zona horaria: se escribe la hora de Lima (UTC-5, sin horario
@@ -79,29 +107,32 @@ function estilizarEncabezado(hoja) {
   }
 }
 
+/** WHERE de búsqueda de una hoja y sus parámetros. */
+function filtro(cfg, q) {
+  if (!q) return { where: '1=1', params: [] };
+  const n = (cfg.buscar.match(/\?/g) || []).length;
+  return { where: cfg.buscar, params: Array(n).fill(`%${q}%`) };
+}
+
 /**
- * Hoja "Todos": RUC y DNI juntos con las columnas comunes (igual que la
- * vista "Todos" de la pantalla). Va primero para que se vea la data completa
- * al abrir el archivo.
+ * Hoja "Todos": RUC, DNI y placas juntos con las columnas comunes (igual que
+ * la vista "Todos" de la pantalla). Va primero para que se vea la data
+ * completa al abrir el archivo.
  */
 async function agregarHojaTodos(libro, q) {
-  const like = `%${q}%`;
+  const partes = Object.values(RESUMEN).map((r) => ({ ...r, ...filtro(r.hoja, q) }));
   const [filas] = await db.query(
-    `SELECT ruc AS numero, 'RUC' AS tipo, razon_social AS nombre, estado_contribuyente AS estado,
-            consultas, primera_consulta, ultima_consulta
-       FROM cache_ruc ${q ? 'WHERE ruc LIKE ? OR razon_social LIKE ?' : ''}
-     UNION ALL
-     SELECT dni, 'DNI', nombre_completo, NULL, consultas, primera_consulta, ultima_consulta
-       FROM cache_dni ${q ? 'WHERE dni LIKE ? OR nombres LIKE ? OR apellido_paterno LIKE ? OR apellido_materno LIKE ?' : ''}
+    `${partes.map((p) => `(SELECT ${p.select}, consultas, primera_consulta, ultima_consulta
+                             FROM ${p.hoja.tabla} WHERE ${p.where})`).join(' UNION ALL ')}
      ORDER BY ultima_consulta DESC`,
-    q ? [like, like, like, like, like, like] : []
+    partes.flatMap((p) => p.params)
   );
 
   const hoja = libro.addWorksheet('Todos', { views: [{ state: 'frozen', ySplit: 1 }] });
   hoja.columns = [
     { header: 'Número',           key: 'numero',           width: 14 },
     { header: 'Tipo',             key: 'tipo',             width: 8 },
-    { header: 'Nombre / Razón social', key: 'nombre',      width: 45 },
+    { header: 'Nombre / Razón social / Vehículo', key: 'nombre', width: 45 },
     { header: 'Estado',           key: 'estado',           width: 12 },
     { header: 'Consultas',        key: 'consultas',        width: 11 },
     { header: 'Primera consulta', key: 'primera_consulta', width: 18 },
@@ -123,13 +154,7 @@ async function agregarHojaTodos(libro, q) {
 }
 
 async function agregarHoja(libro, cfg, q) {
-  const params = [];
-  let where = '1=1';
-  if (q) {
-    where = cfg.buscar;
-    const n = (cfg.buscar.match(/\?/g) || []).length;
-    for (let i = 0; i < n; i++) params.push(`%${q}%`);
-  }
+  const { where, params } = filtro(cfg, q);
 
   const [filas] = await db.query(
     `SELECT * FROM ${cfg.tabla} WHERE ${where} ORDER BY ultima_consulta DESC`, params
@@ -173,13 +198,13 @@ async function agregarHoja(libro, cfg, q) {
 }
 
 /**
- * GET /api/listado/exportar?tipo=todos|ruc|dni&q=texto
+ * GET /api/listado/exportar?tipo=todos|ruc|dni|placa&q=texto
  * Descarga un Excel con TODOS los registros que coinciden con el filtro
- * (sin paginación). Con tipo=todos la primera hoja "Todos" junta RUC y DNI,
+ * (sin paginación). Con tipo=todos la primera hoja "Todos" junta RUC, DNI y placas,
  * seguida de una hoja de detalle para cada tipo.
  */
 async function exportarExcel(req, res) {
-  const tipo = ['ruc', 'dni'].includes(req.query.tipo) ? req.query.tipo : 'todos';
+  const tipo = HOJAS[req.query.tipo] ? req.query.tipo : 'todos';
   const q    = (req.query.q || '').trim();
 
   try {
@@ -191,8 +216,7 @@ async function exportarExcel(req, res) {
     if (tipo === 'todos') {
       // Primero la hoja con todo junto; luego el detalle completo de cada tipo
       total = await agregarHojaTodos(libro, q);
-      await agregarHoja(libro, HOJAS.ruc, q);
-      await agregarHoja(libro, HOJAS.dni, q);
+      for (const cfg of Object.values(HOJAS)) await agregarHoja(libro, cfg, q);
     } else {
       total = await agregarHoja(libro, HOJAS[tipo], q);
     }

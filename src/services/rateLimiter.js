@@ -30,9 +30,10 @@ class RateLimiter {
    * Los turnos se atienden en orden de llegada.
    * @param {(ms:number)=>void} [onEspera] se llama cuando hay que esperar.
    * @param {AbortSignal} [signal] permite cancelar la espera.
+   * @param {number} [costo] cupos que consume la llamada (p. ej. una placa = 2).
    */
-  acquire(onEspera, signal) {
-    const turno = this.cola.then(() => this.#esperarCupo(onEspera, signal));
+  acquire(onEspera, signal, costo = 1) {
+    const turno = this.cola.then(() => this.#esperarCupo(onEspera, signal, costo));
     this.cola = turno.catch(() => {});
     return turno;
   }
@@ -42,7 +43,7 @@ class RateLimiter {
     this.bloqueadoHasta = Math.max(this.bloqueadoHasta, Date.now() + ms);
   }
 
-  async #esperarCupo(onEspera, signal) {
+  async #esperarCupo(onEspera, signal, costo) {
     for (;;) {
       const ahora = Date.now();
       this.marcas = this.marcas.filter((t) => ahora - t < VENTANA_MS);
@@ -50,12 +51,14 @@ class RateLimiter {
       let espera = 0;
       if (this.bloqueadoHasta > ahora) {
         espera = this.bloqueadoHasta - ahora;
-      } else if (this.marcas.length >= this.max) {
-        espera = VENTANA_MS - (ahora - this.marcas[0]) + 50;
+      } else if (this.marcas.length + costo > this.max) {
+        // Hay que esperar a que salgan de la ventana las llamadas necesarias
+        const liberar = this.marcas.length + costo - this.max;
+        espera = VENTANA_MS - (ahora - this.marcas[liberar - 1]) + 50;
       }
 
       if (!espera) {
-        this.marcas.push(ahora);
+        for (let i = 0; i < costo; i++) this.marcas.push(ahora);
         return;
       }
 

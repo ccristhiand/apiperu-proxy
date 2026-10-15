@@ -12,6 +12,13 @@ let filtro = 'todos';            // todos | ok | error
 let resultado = null;            // { tipo, filas: [{ linea, numero, ok, fuente, datos, mensaje, reintentable }] }
 let proceso = null;              // lote en curso: { objetivo, controller, inicio, esperaHasta, timer }
 
+/** Texto de ejemplo del área de pegado según el tipo. */
+const EJEMPLOS = {
+  ruc:   ['20100070970', '10749697682', '20601138498'].join('\n'),
+  dni:   ['74969768', '12345678', '01234567'].join('\n'),
+  placa: ['ABC123', 'B7X-456', 'M2B789'].join('\n'),
+};
+
 const COLUMNAS = {
   ruc: {
     titulos: ['Razón social', 'Estado', 'Condición'],
@@ -24,6 +31,14 @@ const COLUMNAS = {
   dni: {
     titulos: ['Nombres', 'Ap. paterno', 'Ap. materno'],
     datos: (d) => [cell(d?.nombres), cell(d?.apellido_paterno), cell(d?.apellido_materno)],
+  },
+  placa: {
+    titulos: ['Vehículo', 'Año', 'Clase'],
+    datos: (d) => [
+      cell([d?.marca, d?.modelo].filter(Boolean).join(' ')),
+      cell(d?.anio),
+      cell(d?.clase_vehiculo),
+    ],
   },
 };
 
@@ -351,6 +366,7 @@ export function initBulk() {
     b.addEventListener('click', () => {
       tipo = b.dataset.bulkTipo;
       activarSegmento(document.querySelectorAll('[data-bulk-tipo]'), b);
+      $('bulkTexto').placeholder = EJEMPLOS[tipo];
     }));
 
   $('bulkTexto').addEventListener('input', actualizarContador);

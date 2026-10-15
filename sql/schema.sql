@@ -60,12 +60,34 @@ CREATE TABLE IF NOT EXISTS cache_dni (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
+-- Caché de consultas de placas vehiculares
+-- (ApiPeruDev /placa — cada consulta consume 2 del plan)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cache_placa (
+  id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  placa            VARCHAR(7)        NOT NULL UNIQUE,
+  marca            VARCHAR(100)      NULL,
+  modelo           VARCHAR(150)      NULL,
+  anio             SMALLINT UNSIGNED NULL,
+  tipo_vehiculo    VARCHAR(100)      NULL,
+  clase_vehiculo   VARCHAR(100)      NULL,
+  numero_asientos  SMALLINT UNSIGNED NULL,
+  vin              VARCHAR(50)       NULL,
+  categoria_mtc    VARCHAR(20)       NULL,
+  datos_extra      JSON              NULL,
+  consultas        INT UNSIGNED      NOT NULL DEFAULT 1,
+  primera_consulta DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ultima_consulta  DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_placa_ultima_consulta (ultima_consulta)
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
 -- Log de todas las consultas realizadas
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS log_consultas (
   id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   usuario_id INT UNSIGNED        NULL,
-  tipo       ENUM('ruc','dni')   NOT NULL,
+  tipo       ENUM('ruc','dni','placa') NOT NULL,
   numero     VARCHAR(15)         NOT NULL,
   fuente     ENUM('cache','api') NOT NULL,
   ip         VARCHAR(45)         NULL,
